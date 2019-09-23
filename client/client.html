@@ -1,14 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <title>Our simple HTTP server</title>
   <link rel="stylesheet" type="text/css" href="/style.css">
-  
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.34/browser.min.js"></script>
   <script type="text/babel">
-
+ // Function that handles response sent back from server
+ const handleResponse = (xhr) => {
+      // get the html elements
+      const pElem = document.querySelector('#content p');
+      const hElem = document.querySelector('#content h3');
+      // take out the '/'' and make the first char uppercase
+      let requestedPage = document.querySelector("#page").value.replace('/','');
+      requestedPage = requestedPage.charAt(0).toUpperCase() + requestedPage.slice(1);
+      // get response type
+      const responseType = xhr.getResponseHeader('content-type');
+      // handle response type appropriately
+      if (responseType === 'application/json') {
+        const json = JSON.parse(xhr.response);
+        console.log(json);
+        hElem.innerHTML = requestedPage;
+        pElem.innerHTML = `Message: ${json.message}`;
+      } 
+      else if (responseType === 'text/xml') {
+        console.log(xhr.responseXML);
+        hElem.innerHTML = requestedPage;
+        pElem.textContent = `Message: ${xhr.responseXML.querySelector('message').textContent}`;
+      }
+    };
+    // Send Request function
+    const sendGet = (url, format) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', url);
+      xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+      // Handle both JSON/XML response types
+      xhr.setRequestHeader ('Accept', format);
+      
+      // Handle response once we receive it
+      xhr.onload = () => handleResponse(xhr);
+    
+      // Send Request
+      xhr.send();
+    };
+    const init = () => {  
+      // Make some dom elements    
+      document.querySelector('#content').appendChild(document.createElement('h3'));
+      document.querySelector('#content').appendChild(document.createElement('p'));
+      
+      // When the user clicks on the send button, send GET request
+      const sendRequest = () => sendGet(document.querySelector("#page").value, document.querySelector("#type").value);
+      document.querySelector('#send').addEventListener('click', sendRequest);
+    };
+    window.onload = init;
   </script>
 </head>
+
 <body>
   <section id="top">
     <h3>POST Status Code Tests</h3>
@@ -16,7 +64,7 @@
       <label for="name">Name: </label>
       <input id="nameField" type="text" name="name" />
       <label for="age">Age: </label>
-      <input id="ageField" type="number" name="age" min="0" max="100" step="1"/>
+      <input id="ageField" type="number" name="age" min="0" max="100" step="1" />
       <input type="submit" value="Add User" />
     </form>
     <form id="userForm" action="/getUsers" method="get">
@@ -34,4 +82,5 @@
   <section id="content">
   </section>
 </body>
+
 </html>
