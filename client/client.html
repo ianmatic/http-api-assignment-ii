@@ -8,50 +8,102 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.34/browser.min.js"></script>
   <script type="text/babel">
  // Function that handles response sent back from server
- const handleResponse = (xhr) => {
-      // get the html elements
-      const pElem = document.querySelector('#content p');
-      const hElem = document.querySelector('#content h3');
-      // take out the '/'' and make the first char uppercase
-      let requestedPage = document.querySelector("#page").value.replace('/','');
-      requestedPage = requestedPage.charAt(0).toUpperCase() + requestedPage.slice(1);
-      // get response type
-      const responseType = xhr.getResponseHeader('content-type');
-      // handle response type appropriately
-      if (responseType === 'application/json') {
-        const json = JSON.parse(xhr.response);
-        console.log(json);
-        hElem.innerHTML = requestedPage;
-        pElem.innerHTML = `Message: ${json.message}`;
-      } 
-      else if (responseType === 'text/xml') {
-        console.log(xhr.responseXML);
-        hElem.innerHTML = requestedPage;
-        pElem.textContent = `Message: ${xhr.responseXML.querySelector('message').textContent}`;
+ const handleResponse = (xhr, shouldParse) => {
+      const content = document.querySelector("#content");
+      console.log(xhr.status);
+
+      switch(xhr.status) {
+        case 200:
+          content.innerHTML = `<b>Success</b>`;
+          break;
+        case 201:
+          content.innerHTML = `<b>Create</b>`;
+          break;
+        case 204:
+          content.innerHTML = `<b>Updated (No Content)</b>`;
+          return;
+        case 304:
+          content.innerHTML = `<b>Not Modified</b>`;
+          break;
+        case 400:
+          content.innerHTML = `<b>Bad Request</b>`;
+          break;
+        case 404:
+          content.innerHTML = `<b>Resource Not Found</b>`;
+          break;
+        default:
+          content.innerHTML = `Error code not implemented by client.`;
+          break;
+      }
+
+      if (shouldParse) {
+        // Note - empty for 204
+        const obj = JSON.parse(xhr.response);
+        console.dir(obj);
+
+        // display message
+        if (obj.message) {
+          const pElem = document.createElement('p');
+          pElem.innerHTML = `Message: ${obj.message}`;
+          content.appendChild(pElem);
+        }
+        // display users
+        if (obj.users) {
+          const pElem = document.createElement('p');
+          pElem.innerHTML = JSON.stringify(obj.users);
+          content.appendChild(pElem);
+        }
       }
     };
-    // Send Request function
-    const sendGet = (url, format) => {
+    // Send Request function for addUser
+    const sendPOST = (e, form) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('GET', url);
+      xhr.open(form.getAttribute('method'), form.getAttribute('action'));
       xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-      // Handle both JSON/XML response types
-      xhr.setRequestHeader ('Accept', format);
+      xhr.setRequestHeader ('Accept', 'application/json');
       
-      // Handle response once we receive it
-      xhr.onload = () => handleResponse(xhr);
+      // Handle response once we receive it, and parse it
+      xhr.onload = () => handleResponse(xhr, true);
     
+      const data = `name=${form.querySelector('#nameField').value}&age=${form.querySelector('#ageField').value}`;
       // Send Request
+      xhr.send(data);
+
+      e.preventDefault();
+      return false;
+    };
+
+    //Send request function for getUsers
+    const requestUpdate = (e, form) => {
+      const xhr = new XMLHttpRequest();
+      const url = userForm.querySelector('#urlField').value;
+      const method = userForm.querySelector('#methodSelect').value;
+      xhr.open(method, url);
+      xhr.setRequestHeader('Accept', 'application/json');
+
+      if (method == 'get') {
+        xhr.onload = () => handleResponse(xhr, true);
+      } else {
+        xhr.onload = () => handleResponse(xhr, false);
+      }
+
       xhr.send();
+
+      e.preventDefault();
+      return false;
     };
     const init = () => {  
-      // Make some dom elements    
-      document.querySelector('#content').appendChild(document.createElement('h3'));
-      document.querySelector('#content').appendChild(document.createElement('p'));
-      
-      // When the user clicks on the send button, send GET request
-      const sendRequest = () => sendGet(document.querySelector("#page").value, document.querySelector("#type").value);
-      document.querySelector('#send').addEventListener('click', sendRequest);
+      // Get DOM elements
+      const userForm = document.querySelector('#userForm');
+      const nameForm = document.querySelector('#nameForm');
+
+      // Set DOM on submit functions
+      const getUsers = (e) => requestUpdate(e, userForm);
+      const addUser = (e) => sendPOST(e, nameForm);
+
+      // Set DOM listeners
+      userForm.addEventListener('submit', getUsers);
+      nameForm.addEventListener('submit', addUser);
     };
     window.onload = init;
   </script>

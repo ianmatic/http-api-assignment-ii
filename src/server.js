@@ -6,30 +6,61 @@ const jsonHandler = require('./jsonResponses.js');
 
 const port = process.env.PORT || process.env.NODE_PORT || 3000;
 
-// Various urls that server can handle
-const urlStruct = {
-  '/': htmlHandler.getIndex,
-  '/style.css': htmlHandler.getCSS,
-  '/success': jsonHandler.success,
-  '/badRequest': jsonHandler.badRequest,
-  '/unauthorized': jsonHandler.unauthorized,
-  '/forbidden': jsonHandler.forbidden,
-  '/internal': jsonHandler.internal,
-  '/notImplemented': jsonHandler.notImplemented,
-  notFound: jsonHandler.notFound,
+const handlePost = (request, response, parsedUrl) => {
+  if (parsedUrl.pathname === '/addUser') {
+    const tempResponse = response;
+    let body = [];
+
+    // error in upload stream
+    request.on('error', (err) => {
+      console.dir(err);
+      tempResponse.statusCode = 400;
+      tempResponse.end();
+    });
+
+    request.on('data', (chunk) => {
+      body.push(chunk);
+    });
+
+    // end of upload stream.
+    request.on('end', () => {
+      body = query.parse(Buffer.concat(body).toString());
+      jsonHandler.addUser(request, tempResponse, body);
+    });
+  }
 };
 
 // Function that handles requests from client
 const onRequest = (request, response) => {
   const parsedUrl = url.parse(request.url);
-  const acceptedTypes = request.headers.accept.split(',');
-  const params = query.parse(parsedUrl.query);
 
-  // add additional params
-  if (urlStruct[parsedUrl.pathname]) {
-    urlStruct[parsedUrl.pathname](request, response, acceptedTypes, params);
-  } else {
-    urlStruct.notFound(request, response, acceptedTypes, params);
+  switch (request.method) {
+    case 'GET':
+      if (parsedUrl.pathname === '/') {
+        htmlHandler.getIndex(request, response);
+      } else if (parsedUrl.pathname === '/style.css') {
+        htmlHandler.getCSS(request, response);
+      } else if (parsedUrl.pathname === '/getUsers') {
+        jsonHandler.getUsers(request, response);
+      } else {
+        // 404
+        jsonHandler.notFound(request, response);
+      }
+      break;
+    case 'HEAD':
+      if (parsedUrl.pathname === '/getUsers') {
+        jsonHandler.getUsersMeta(request, response);
+      } else {
+        // 404
+        jsonHandler.notFoundMeta(request, response);
+      }
+      break;
+    case 'POST':
+      handlePost(request, response, parsedUrl);
+      break;
+    default:
+      jsonHandler.notFound(request, response);
+      break;
   }
 };
 
